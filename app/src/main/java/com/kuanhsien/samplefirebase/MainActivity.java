@@ -21,14 +21,8 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -48,12 +42,15 @@ public class MainActivity extends AppCompatActivity {
     FirebaseHelper firebaseHelper = new FirebaseHelper();
 
     // post Users
+    private ConstraintLayout mConstraintLayoutSearchUser;
+    private ConstraintLayout mConstraintLayoutSearchArticle;
+    private ConstraintLayout mConstraintLayoutPostArticle;
     private ConstraintLayout mConstraintLayoutUserLogin;
-    private EditText mEditTextNameLoginEmail;
-    private EditText mEditTextNameLoginPw;
-    private EditText mEditTextNameRegisterName;
-    private EditText mEditTextNameRegisterEmail;
-    private EditText mEditTextNameRegisterPw;
+    private EditText mEditTextUserLoginEmail;
+    private EditText mEditTextUserLoginPw;
+    private EditText mEditTextUserRegisterName;
+    private EditText mEditTextUserRegisterEmail;
+    private EditText mEditTextUserRegisterPw;
     private TextView mTextViewUserRegisterEmail;
     private Button mButtonUserLogin;
     private Button mButtonUserRegister;
@@ -62,6 +59,8 @@ public class MainActivity extends AppCompatActivity {
     private Button mButtonSearchUserEmail;
     private TextView mTextViewSearchUserEmail;
     private String mStrFriendId;
+    private String mStrFriendEmail;
+    private String mStrFriendStatus;
     private TextView mTextViewFriendStatus;
     private Button mButtonFriendStatus;
 
@@ -183,11 +182,15 @@ public class MainActivity extends AppCompatActivity {
         //**
         //[Post Function] 1. user login
         mConstraintLayoutUserLogin = findViewById(R.id.constraint_user_login);
-        mEditTextNameLoginEmail = findViewById(R.id.edittext_user_login_email);
-        mEditTextNameLoginPw = findViewById(R.id.edittext_user_login_password);
-        mEditTextNameRegisterName = findViewById(R.id.edittext_user_register_name);
-        mEditTextNameRegisterEmail = findViewById(R.id.edittext_user_register_email);
-        mEditTextNameRegisterPw = findViewById(R.id.edittext_user_register_password);
+        mConstraintLayoutSearchUser = findViewById(R.id.constraint_search_user_email);
+        mConstraintLayoutSearchArticle = findViewById(R.id.constraint_search_article);
+        mConstraintLayoutPostArticle = findViewById(R.id.constraint_post_article);
+
+        mEditTextUserLoginEmail = findViewById(R.id.edittext_user_login_email);
+        mEditTextUserLoginPw = findViewById(R.id.edittext_user_login_password);
+        mEditTextUserRegisterName = findViewById(R.id.edittext_user_register_name);
+        mEditTextUserRegisterEmail = findViewById(R.id.edittext_user_register_email);
+        mEditTextUserRegisterPw = findViewById(R.id.edittext_user_register_password);
         mTextViewUserRegisterEmail = findViewById(R.id.textview_user_register_email);
 
         //[Login]
@@ -198,8 +201,8 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 // 1. 取得 user login info
-                final String strEmail = mEditTextNameLoginEmail.getText().toString();
-                final String strPw = mEditTextNameLoginPw.getText().toString();
+                final String strEmail = mEditTextUserLoginEmail.getText().toString();
+                final String strPw = mEditTextUserLoginPw.getText().toString();
 
                 // Email and password can't be null
                 if (strEmail == null || strPw == null || strEmail.equals("") || strPw.equals("")) {
@@ -255,15 +258,18 @@ public class MainActivity extends AppCompatActivity {
                         // if login
                         if (hasLoginCheck) {
 
-                            mStrUserEmail = mEditTextNameLoginEmail.getText().toString();
+                            mStrUserEmail = mEditTextUserLoginEmail.getText().toString();
                             mStrUserId = dataSnapshot.getKey();
                             Toast.makeText(MainActivity.this, "Welcome!", Toast.LENGTH_SHORT).show();
                             mConstraintLayoutUserLogin.setVisibility(View.GONE);
+                            mConstraintLayoutSearchUser.setVisibility(View.VISIBLE);
+                            mConstraintLayoutPostArticle.setVisibility(View.VISIBLE);
+                            mConstraintLayoutSearchArticle.setVisibility(View.VISIBLE);
 
                         } else {
 
-                            mEditTextNameLoginEmail.setText("");
-                            mEditTextNameLoginPw.setText("");
+                            mEditTextUserLoginEmail.setText("");
+                            mEditTextUserLoginPw.setText("");
                             Toast.makeText(MainActivity.this, "Email or password is invalid. Please login again!", Toast.LENGTH_SHORT).show();
                         }
                     }
@@ -291,81 +297,6 @@ public class MainActivity extends AppCompatActivity {
             } //onclick user Login
         }); //ButtonUserLogin.setOnClickListener
 
-//                queryData.addValueEventListener(new ValueEventListener() {
-//
-//                    @Override
-//                    public void onDataChange(DataSnapshot dataSnapshot) {
-//                        // This method is called once with the initial value and again
-//                        // whenever data at this location is updated.
-//
-//                        Log.d(TAG, MSG + "[Login] Search users by email onDataChange: dataSnapshot = " + dataSnapshot.toString());
-//
-//
-////                        String strData = dataSnapshot.toString();//.child("user").child("email").toString();//getValue().toString();//.getValue().toString();
-////                        String strUserId =  dataSnapshot.getRef().child("user").push().getKey();
-////                        String strData = dataSnapshot.child("user").child(strUserId).toString();
-//
-//                        String strData = dataSnapshot.child("email").toString();
-//
-//
-//                        Log.d(TAG, MSG + "[Login] dataSnapshot.getValue() = " + strData);
-//
-//                        Boolean hasLoginCheck = false;
-//
-//                        if (strData == null) {
-//
-//                            Toast.makeText(MainActivity.this, "Email is not existed!", Toast.LENGTH_SHORT).show();
-//                            hasLoginCheck = false;
-//
-//                        } else {
-//
-//                            try {
-//                                JSONObject jsonObjectUser = new JSONObject(strData);
-//
-//                                if (jsonObjectUser.has("password")) {
-//
-//                                    String userPassword = jsonObjectUser.getString("password");
-//                                    if (strPw.equals(userPassword)) {
-//                                        hasLoginCheck = true;
-//                                    }
-//                                } else { //super user
-//                                    hasLoginCheck = true;
-//                                }
-//
-//                            } catch (JSONException e) {
-//                                Log.d(TAG, MSG + "User login parse json exception: " + e.toString());
-//                                e.printStackTrace();
-//                            }
-//                        }
-//
-//
-//
-//                        // if login
-//                        if (hasLoginCheck) {
-//
-//                            Toast.makeText(MainActivity.this, "Welcome!", Toast.LENGTH_SHORT).show();
-//                            mConstraintLayoutUserLogin.setVisibility(View.INVISIBLE);
-//
-//                        } else {
-//
-//                            mEditTextNameLoginEmail.setText("");
-//                            mEditTextNameLoginPw.setText("");
-//                            Toast.makeText(MainActivity.this, "Email or password is invalid. Please login again!", Toast.LENGTH_SHORT).show();
-//                        }
-//                    }
-//
-//
-//                    @Override
-//                    public void onCancelled(DatabaseError error) {
-//                        // Failed to read value
-//                        Log.d(TAG, MSG + "Search users by email onCancelled");
-//                    }
-//                });
-//                //
-//            }
-//        }); // User Login
-
-
         // Register a new account
         mButtonUserRegister = findViewById(R.id.button_user_register_send);
         mButtonUserRegister.setOnClickListener(new View.OnClickListener() {
@@ -374,9 +305,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 // 1. 取得使用者輸入
-                final String strName = mEditTextNameRegisterName.getText().toString();
-                final String strEmail = mEditTextNameRegisterEmail.getText().toString();
-                final String strPw = mEditTextNameRegisterPw.getText().toString();
+                final String strName = mEditTextUserRegisterName.getText().toString();
+                final String strEmail = mEditTextUserRegisterEmail.getText().toString();
+                final String strPw = mEditTextUserRegisterPw.getText().toString();
 
                 // 2. 把 user 的帳號丟進資料庫檢查是否已有此 user
                 //    1) 如果已經存在，則跳出已有此使用者 id
@@ -515,8 +446,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }); // post articles
 
-
-
         //**
         // [Search Function] 1. user
         // Search by email
@@ -529,6 +458,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
+                //initialization
+                mStrFriendId = "";
+                mStrFriendEmail = "";
+                mStrFriendStatus = "";
+                mTextViewFriendStatus.setText("Email is invalid");
+                mButtonFriendStatus.setText("Invite");
+                mButtonFriendStatus.setVisibility(View.INVISIBLE);
+
                 // check if user input email in editText
                 String strEmailInput = mTextViewSearchUserEmail.getText().toString();
 
@@ -537,6 +474,9 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "Please enter the email", android.widget.Toast.LENGTH_SHORT).show();
                     return;
                 }
+
+                mStrFriendEmail = strEmailInput;
+
 
                 // [Firebase] query
                 DatabaseReference userDataRef = mDatabase.getReference("user");
@@ -556,67 +496,69 @@ public class MainActivity extends AppCompatActivity {
                             return;
                         }
 
+                        mTextViewFriendStatus.setText("");
+                        mButtonFriendStatus.setVisibility(View.VISIBLE);
                         mStrFriendId = dataSnapshot.getKey().toString();
 
                         DatabaseReference friendDataRef = mDatabase.getReference("user/" + mStrUserId + "/friends");
+//                        DatabaseReference friendDataRef = mDatabase.getReference("user/" + mStrUserId);
 
-                        Query queryFriends = friendDataRef.orderByChild(mStrFriendId).limitToFirst(1);
+                        Query queryFriends = friendDataRef.orderByKey().equalTo(mStrFriendId);
+//                        Query queryFriends = friendDataRef.orderByChild(mStrFriendId).limitToFirst(1);
+//                        Query queryFriends = friendDataRef.orderByChild("friends").equalTo(mStrFriendId);
                         queryFriends.addChildEventListener(new ChildEventListener() {
 
+                            // 第一次會進來 + 後續每次 invited 都會進來
                             @Override
                             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
 
-                                Log.d(TAG, MSG + "onChildAdded: QUERY in friend status: " + dataSnapshot.toString());
+                                Log.d(TAG, MSG + "onChildAdded: query friends status: " + dataSnapshot.toString());
                                 if (dataSnapshot.getValue() == null) {
                                     Log.d(TAG, MSG + "query friends: getValue() = null");
                                 }
 
-                                String strFriendStatus = dataSnapshot.getValue().toString();
-                                if (strFriendStatus.equals("friends")) {
-                                    mButtonFriendStatus.setText("Friend :)");
+                                mStrFriendStatus = dataSnapshot.getValue().toString();
+                                if (mStrFriendStatus.equals("friends")) {
+                                    mButtonFriendStatus.setText("Un-friend");
 
-                                } else if (strFriendStatus.equals("invited")) {
+                                } else if (mStrFriendStatus.equals("invited")) {
                                     //我送邀請對方還沒回應
-                                    mButtonFriendStatus.setText("Cancel!");
+                                    mButtonFriendStatus.setText("Cancel");
 
-                                } else if (strFriendStatus.equals("to be confirmed")) {
+                                } else if (mStrFriendStatus.equals("to be confirmed")) {
                                     //對方送邀請給我還沒回應
-                                    mButtonFriendStatus.setText("Confirm!");
+                                    mButtonFriendStatus.setText("Confirm");
 
                                 } else {
-                                    Log.d(TAG, MSG + "query friends: strFriendStatus = " + strFriendStatus);
+                                    Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
                                 }
 
-
-                                mTextViewFriendStatus.setText(dataSnapshot.getValue().toString());
-
-
-
-                                // 更換按鈕
+                                mTextViewFriendStatus.setText("Status: " + dataSnapshot.getValue().toString());
                             }
 
+                            // 修改 db 內容時會進來
                             @Override
                             public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
+                                Log.d(TAG, MSG + "onChildChanged");
                             }
 
+                            // 取消或刪除好友時會進來
                             @Override
                             public void onChildRemoved(DataSnapshot dataSnapshot) {
-
+                                Log.d(TAG, MSG + "onChildRemoved");
                             }
 
                             @Override
                             public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
+                                Log.d(TAG, MSG + "onChildMoved");
                             }
 
                             @Override
                             public void onCancelled(DatabaseError databaseError) {
+                                Log.d(TAG, MSG + "onCancelled");
 
                             }
                         });
-
-
                     }
 
                     @Override
@@ -639,32 +581,6 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(TAG, MSG + "onCancelled");
                     }
                 });
-                // [Firebase]
-//                Query queryData = mDatabaseReference.child("user").orderByChild("email").equalTo(strEmailInput);
-//
-//                queryData.addValueEventListener(new ValueEventListener() {
-//                    @Override
-//                    public void onDataChange(DataSnapshot dataSnapshot) {
-//                        // This method is called once with the initial value and again
-//                        // whenever data at this location is updated.
-//
-//                        // show all users has this email
-//                        // update UI
-//
-////                String value = dataSnapshot.getValue(String.class);
-////                Log.d(TAG, "Value is: " + value);
-////                String value = dataSnapshot.getValue(String.class);
-//                        Log.d(TAG, MSG + "Search users by email onDataChange: dataSnapshot = " + dataSnapshot.toString());
-//                    }
-//
-//
-//                    @Override
-//                    public void onCancelled(DatabaseError error) {
-//                        // Failed to read value
-//                        Log.d(TAG, MSG + "Search users by email onCancelled");
-//                    }
-//                });
-
 
             }
         }); // search users by email
@@ -680,14 +596,33 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                if (mButtonFriendStatus.getText() == "friends") {
-                    // 按了沒事
-                    ;
-                } else if (mButtonFriendStatus.getText() == "invited") {
+                if (mStrFriendStatus.equals("friends")) {
+                    // 按了就取消好友
+                    DatabaseReference myRef = mDatabase.getReference("user/" + mStrUserId + "/friends/" + mStrFriendId);
+                    myRef.removeValue();
+
+                    DatabaseReference friendsRef = mDatabase.getReference("user/" + mStrFriendId + "/friends/" + mStrUserId);
+                    friendsRef.removeValue();
+
+                    mStrFriendStatus = "";
+                    mTextViewFriendStatus.setText("");
+                    mButtonFriendStatus.setText("Invite");
+
+                } else if (mStrFriendStatus.equals("invited")) {
                     // 按了就會 cancel (remove)
 
+                    DatabaseReference myRef = mDatabase.getReference("user/" + mStrUserId + "/friends/" + mStrFriendId);
+                    myRef.removeValue();
+
+                    DatabaseReference friendsRef = mDatabase.getReference("user/" + mStrFriendId + "/friends/" + mStrUserId);
+                    friendsRef.removeValue();
+
+                    mStrFriendStatus = "";
+                    mTextViewFriendStatus.setText("");
+                    mButtonFriendStatus.setText("Invite");
+
                     //mStrFriendId
-                } else if (mButtonFriendStatus.getText() == "to be confirmed") {
+                } else if (mStrFriendStatus.equals("to be confirmed")) {
                     // 按了就會改狀態 setvalue
 
                     DatabaseReference myRef = mDatabase.getReference("user/" + mStrUserId + "/friends/" + mStrFriendId);
@@ -696,18 +631,28 @@ public class MainActivity extends AppCompatActivity {
                     DatabaseReference friendsRef = mDatabase.getReference("user/" + mStrFriendId + "/friends/" + mStrUserId);
                     friendsRef.setValue("friends");
 
+                    mStrFriendStatus = "friends";
+                    mTextViewFriendStatus.setText("Congratulation!");
+                    mButtonFriendStatus.setText("Un-friend");
+
                 } else { //invite
                     // 按了就會邀請 put
                     DatabaseReference myRef = mDatabase.getReference("user/" + mStrUserId + "/friends/" + mStrFriendId);
-                    myRef.setValue("to be confirmed");
+                    myRef.setValue("invited");
 
                     DatabaseReference friendsRef = mDatabase.getReference("user/" + mStrFriendId + "/friends/" + mStrUserId);
-                    friendsRef.setValue("invited");
+                    friendsRef.setValue("to be confirmed");
+
+                    mStrFriendStatus = "invited";
+                    mTextViewFriendStatus.setText("Status: invitation sent!");
+                    mButtonFriendStatus.setText("Cancel");
+
+
 
                 }
 
             } //onclick user Login
         }); //ButtonUserLogin.setOnClickListener
 
-    }
+    } //end of onCreate
 }

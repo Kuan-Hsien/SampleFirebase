@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
 
     // search users
     private Button mButtonSearchUserEmail;
-    private TextView mTextViewSearchUserEmail;
+    private EditText mEditTextSearchUserEmail;
     private String mStrFriendId;
     private String mStrFriendEmail;
     private String mStrFriendStatus;
@@ -106,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
 
-                Toast.makeText(MainActivity.this, "歡迎來到" + mStrArticleTagShow[position] + "版", Toast.LENGTH_SHORT).show();
+//                Toast.makeText(MainActivity.this, "歡迎來到" + mStrArticleTagShow[position] + "版", Toast.LENGTH_SHORT).show();
                 mStrSearchArticleFilterTag = mStrArticleTagId[position];
             }
 
@@ -200,16 +200,17 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                // 1. 取得 user login info
-                final String strEmail = mEditTextUserLoginEmail.getText().toString();
-                final String strPw = mEditTextUserLoginPw.getText().toString();
-
                 // Email and password can't be null
-                if (strEmail == null || strPw == null || strEmail.equals("") || strPw.equals("")) {
+                if (mEditTextUserLoginEmail.getText() == null || mEditTextUserLoginPw.getText() == null || mEditTextUserLoginEmail.getText().toString().equals("") || mEditTextUserLoginPw.getText().toString().equals("")) {
                     Toast.makeText(MainActivity.this, "Email and password can't be null", android.widget.Toast.LENGTH_SHORT).show();
                     return;
                 }
 
+                // 1. 取得 user login info
+                final String strEmail = mEditTextUserLoginEmail.getText().toString();
+                final String strPw = EncodeMd5.md5Password(mEditTextUserLoginPw.getText().toString());
+
+                Log.d(TAG, MSG + "Login password: " + strPw);
 
                 // 2. 把 user 的帳號丟進資料庫檢查是否已有此 user
                 //    1) 如果可搜尋出來一個唯一的 ID 則讓他登入
@@ -305,9 +306,24 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 // 1. 取得使用者輸入
+
+
+
+                if (mEditTextUserRegisterName.getText() == null
+                        || mEditTextUserRegisterName.getText().toString().equals("")
+                        || mEditTextUserRegisterEmail.getText() == null
+                        || mEditTextUserRegisterEmail.getText().toString().equals("")
+                        || mEditTextUserRegisterPw.getText() == null
+                        || mEditTextUserRegisterPw.getText().toString().equals("")) {
+                    Toast.makeText(MainActivity.this, "所有欄位均為必填", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 final String strName = mEditTextUserRegisterName.getText().toString();
                 final String strEmail = mEditTextUserRegisterEmail.getText().toString();
-                final String strPw = mEditTextUserRegisterPw.getText().toString();
+                final String strPw = EncodeMd5.md5Password(mEditTextUserRegisterPw.getText().toString());
+
+                Log.d(TAG, MSG + "Register password: " + strPw);
 
                 // 2. 把 user 的帳號丟進資料庫檢查是否已有此 user
                 //    1) 如果已經存在，則跳出已有此使用者 id
@@ -327,8 +343,12 @@ public class MainActivity extends AppCompatActivity {
                             Toast.makeText(MainActivity.this, "Welcome!", Toast.LENGTH_SHORT).show();
 
                             // register
+
                             firebaseHelper.writeNewUser(strName, strEmail, strPw);
                             mConstraintLayoutUserLogin.setVisibility(View.GONE);
+                            mConstraintLayoutSearchUser.setVisibility(View.VISIBLE);
+                            mConstraintLayoutPostArticle.setVisibility(View.VISIBLE);
+                            mConstraintLayoutSearchArticle.setVisibility(View.VISIBLE);
 
                         } else {
 //                            Toast.makeText(MainActivity.this, "Email is already existed", Toast.LENGTH_SHORT).show();
@@ -449,7 +469,7 @@ public class MainActivity extends AppCompatActivity {
         //**
         // [Search Function] 1. user
         // Search by email
-        mTextViewSearchUserEmail = findViewById(R.id.edittext_search_user_email);
+        mEditTextSearchUserEmail = findViewById(R.id.edittext_search_user_email);
         mButtonSearchUserEmail = findViewById(R.id.button_search_user_email_send);
         mTextViewFriendStatus = findViewById(R.id.textview_search_friend_status);
 
@@ -462,12 +482,12 @@ public class MainActivity extends AppCompatActivity {
                 mStrFriendId = "";
                 mStrFriendEmail = "";
                 mStrFriendStatus = "";
-                mTextViewFriendStatus.setText("Email is invalid");
+                mTextViewFriendStatus.setText("Email is not exised");
                 mButtonFriendStatus.setText("Invite");
                 mButtonFriendStatus.setVisibility(View.INVISIBLE);
 
                 // check if user input email in editText
-                String strEmailInput = mTextViewSearchUserEmail.getText().toString();
+                String strEmailInput = mEditTextSearchUserEmail.getText().toString();
 
                 // return if user input null
                 if (strEmailInput.equals("")) {
@@ -512,7 +532,7 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
 
-                                Log.d(TAG, MSG + "onChildAdded: query friends status: " + dataSnapshot.toString());
+                                Log.d(TAG, MSG + "onChildAdded: friends status: " + dataSnapshot.toString());
                                 if (dataSnapshot.getValue() == null) {
                                     Log.d(TAG, MSG + "query friends: getValue() = null");
                                 }
@@ -520,43 +540,69 @@ public class MainActivity extends AppCompatActivity {
                                 mStrFriendStatus = dataSnapshot.getValue().toString();
                                 if (mStrFriendStatus.equals("friends")) {
                                     mButtonFriendStatus.setText("Un-friend");
+                                    mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
 
                                 } else if (mStrFriendStatus.equals("invited")) {
                                     //我送邀請對方還沒回應
                                     mButtonFriendStatus.setText("Cancel");
+                                    mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
 
                                 } else if (mStrFriendStatus.equals("to be confirmed")) {
                                     //對方送邀請給我還沒回應
                                     mButtonFriendStatus.setText("Confirm");
+                                    mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
 
                                 } else {
-                                    Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
+                                    mButtonFriendStatus.setText("Invite");
+                                    mTextViewFriendStatus.setText("");
                                 }
 
-                                mTextViewFriendStatus.setText("Status: " + dataSnapshot.getValue().toString());
+                                Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
                             }
 
                             // 修改 db 內容時會進來
                             @Override
                             public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-                                Log.d(TAG, MSG + "onChildChanged");
+
+                                Log.d(TAG, MSG + "onChildChanged: friends status: " + dataSnapshot.toString());
+                                if (dataSnapshot.getValue() == null) {
+                                    Log.d(TAG, MSG + "query friends: getValue() = null");
+                                }
+
+                                //如果原本狀態是邀請對方或受邀請還沒回應，進來代表雙方變成朋友
+                                mStrFriendStatus = "friends";
+                                mButtonFriendStatus.setText("Un-friend");
+                                mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
+
+                                Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
                             }
 
                             // 取消或刪除好友時會進來
                             @Override
                             public void onChildRemoved(DataSnapshot dataSnapshot) {
-                                Log.d(TAG, MSG + "onChildRemoved");
+
+                                Log.d(TAG, MSG + "onChildRemoved: friends status: " + dataSnapshot.toString());
+                                if (dataSnapshot.getValue() == null) {
+                                    Log.d(TAG, MSG + "query friends: getValue() = null");
+                                }
+
+                                //進來代表被取消好友了
+                                mStrFriendStatus = "";
+                                mButtonFriendStatus.setText("Invite");
+                                mTextViewFriendStatus.setText("");
+
+                                Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
                             }
 
                             @Override
                             public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-                                Log.d(TAG, MSG + "onChildMoved");
+
+                                Log.d(TAG, MSG + "onChildMoved: friends status: " + dataSnapshot.toString());
                             }
 
                             @Override
                             public void onCancelled(DatabaseError databaseError) {
                                 Log.d(TAG, MSG + "onCancelled");
-
                             }
                         });
                     }
@@ -569,6 +615,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onChildRemoved(DataSnapshot dataSnapshot) {
                         Log.d(TAG, MSG + "onChildRemoved");
+
                     }
 
                     @Override

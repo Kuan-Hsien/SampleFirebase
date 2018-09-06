@@ -23,6 +23,7 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.EventListener;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -77,12 +78,63 @@ public class MainActivity extends AppCompatActivity {
     private String mStrPostArticleTag = null;
 
 
-    private int intSearchArticleTagId = 0;
+    Boolean isFirstQueryArticle;
+    Boolean isFirstUserLogin;
+    Boolean isFirstUserRegister;
+    Boolean isFirstQueryFriendId;
+    Boolean isFirstQueryFriendStatus;
+
+    private Query mQueryArticle;
+    private Query mQueryUserLoginData;
+    private Query mQueryUserRegisterData;
+    private Query mQueryFriendId;
+    private DatabaseReference mUserDataRef;
+    private Query mQueryFriendsStatus;
+    private DatabaseReference mFriendDataRef;
+
+
+
+    private String strEmail;
+    private String strPw;
+    private String strName;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        isFirstQueryArticle = true;
+        isFirstUserLogin = true;
+        isFirstUserRegister = true;
+        isFirstQueryFriendId = true;
+        isFirstQueryFriendStatus = true;
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        if (isFirstQueryArticle == false) { mQueryArticle.removeEventListener(mEventListenerQueryArticle); };
+        if (isFirstUserLogin == false) { mQueryUserLoginData.removeEventListener(mChildEventListenerSearchUserEmail); };
+//        if (isFirstUserRegister == false) { mQueryUserRegisterData.removeEventListener(mEventListenerQuery); };
+        if (isFirstQueryFriendId == false) { mQueryFriendId.removeEventListener(mChildEventListenerSearchFriendId); };
+        if (isFirstQueryFriendStatus == false) { mQueryFriendsStatus.removeEventListener(mChildEventListenerSearchFriendStatus); };
+
+        isFirstQueryArticle = true;
+        isFirstUserLogin = true;
+        isFirstUserRegister = true;
+        isFirstQueryFriendId = true;
+        isFirstQueryFriendStatus = true;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        isFirstQueryArticle = true;
+        isFirstUserLogin = true;
+        isFirstUserRegister = true;
+        isFirstQueryFriendId = true;
+        isFirstQueryFriendStatus = true;
 
         // Firebase
         mDatabase = FirebaseDatabase.getInstance();
@@ -128,56 +180,35 @@ public class MainActivity extends AppCompatActivity {
                 String strAuthor = mEditTextSearchArticles.getText().toString();
                 String strFilter = mStrSearchArticleFilterTag;
 
-
                 // [Firebase]
-                Query queryData;
-
+                if (isFirstQueryArticle) {
+                    isFirstQueryArticle = false;
+                } else {
+                    mQueryArticle.removeEventListener(mEventListenerQueryArticle);
+                }
                 // without constraint author filter
                 if (mStrSearchArticleFilterTag == null || mStrSearchArticleFilterTag.equals("")) {
 
                     if ("ALL".equals(strFilter)) {
-                        queryData = mDatabaseReference.child("article");
+                        mQueryArticle = mDatabaseReference.child("article");
                     } else {
-                        queryData = mDatabaseReference.child("article").orderByChild("tag").equalTo(strFilter);
+                        mQueryArticle = mDatabaseReference.child("article").orderByChild("tag").equalTo(strFilter);
                     }
 
                 } else {
 
                     if ("ALL".equals(strFilter)) {
-                        queryData = mDatabaseReference.child("article").orderByChild("author").equalTo(strAuthor);
+                        mQueryArticle = mDatabaseReference.child("article").orderByChild("author").equalTo(strAuthor);
                     } else {
-                        queryData = mDatabaseReference.child("article").orderByChild("author_tag").equalTo(strAuthor + "_" + strFilter);
+                        mQueryArticle = mDatabaseReference.child("article").orderByChild("author_tag").equalTo(strAuthor + "_" + strFilter);
                     }
                 }
 
-                queryData.addValueEventListener(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        // This method is called once with the initial value and again
-                        // whenever data at this location is updated.
-
-                        // show all users has this email
-                        // update UI
-
-//                String value = dataSnapshot.getValue(String.class);
-//                Log.d(TAG, "Value is: " + value);
-//                String value = dataSnapshot.getValue(String.class);
-                        Log.d(TAG, MSG + "Search articles onDataChange: dataSnapshot = " + dataSnapshot.toString());
-                    }
-
-
-                    @Override
-                    public void onCancelled(DatabaseError error) {
-                        // Failed to read value
-                        Log.d(TAG, MSG + "Search articles onCancelled");
-                    }
-                });
+                mQueryArticle.addValueEventListener(mEventListenerQueryArticle);
 
 
             }
         }); // search articles by tag
-
-
 
         //**
         //[Post Function] 1. user login
@@ -207,8 +238,8 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 // 1. 取得 user login info
-                final String strEmail = mEditTextUserLoginEmail.getText().toString();
-                final String strPw = EncodeMd5.md5Password(mEditTextUserLoginPw.getText().toString());
+                strEmail = mEditTextUserLoginEmail.getText().toString();
+                strPw = EncodeMd5.md5Password(mEditTextUserLoginPw.getText().toString());
 
                 Log.d(TAG, MSG + "Login password: " + strPw);
 
@@ -219,82 +250,15 @@ public class MainActivity extends AppCompatActivity {
                 // [Firebase] query
                 DatabaseReference userDataRef = mDatabase.getReference("user");
 
-                Query queryData = userDataRef.orderByChild("email").equalTo(strEmail);
-                queryData.addChildEventListener(new ChildEventListener() {
+                // remove current listener
+                if (isFirstUserLogin) {
+                    isFirstUserLogin = false;
+                } else {
+                    mQueryUserLoginData.removeEventListener(mChildEventListenerSearchUserEmail);
+                }
+                mQueryUserLoginData = userDataRef.orderByChild("email").equalTo(strEmail);
+                mQueryUserLoginData.addChildEventListener(mChildEventListenerSearchUserEmail);
 
-                    @Override
-                    public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-
-                        Log.d(TAG, MSG + "onChildAdded");
-                        Log.d(TAG, MSG + "Login by email onDataChange: dataSnapshot = " + dataSnapshot.toString());
-
-                        Boolean hasLoginCheck = false;
-
-                        // search the specific email (user input)
-                        String strData = dataSnapshot.child("email").getValue().toString();
-                        Log.d(TAG, MSG + "[Login] dataSnapshot.child(\"email\").toString() = " + strData);
-
-                        // if no matched email
-                        if (strData == null) {
-
-                            Toast.makeText(MainActivity.this, "Email is not existed!", Toast.LENGTH_SHORT).show();
-                            hasLoginCheck = false;
-
-                        } else {
-
-                            // check password
-                            if (dataSnapshot.hasChild("password")) {
-
-                                String userPassword = dataSnapshot.child("password").getValue().toString();
-                                if (strPw.equals(userPassword)) {
-                                    hasLoginCheck = true;
-                                }
-
-                            } else {
-                                // super user (don't have password)
-                                hasLoginCheck = true;
-                            }
-                        }
-
-                        // if login
-                        if (hasLoginCheck) {
-
-                            mStrUserEmail = mEditTextUserLoginEmail.getText().toString();
-                            mStrUserId = dataSnapshot.getKey();
-                            Toast.makeText(MainActivity.this, "Welcome!", Toast.LENGTH_SHORT).show();
-                            mConstraintLayoutUserLogin.setVisibility(View.GONE);
-                            mConstraintLayoutSearchUser.setVisibility(View.VISIBLE);
-                            mConstraintLayoutPostArticle.setVisibility(View.VISIBLE);
-                            mConstraintLayoutSearchArticle.setVisibility(View.VISIBLE);
-
-                        } else {
-
-                            mEditTextUserLoginEmail.setText("");
-                            mEditTextUserLoginPw.setText("");
-                            Toast.makeText(MainActivity.this, "Email or password is invalid. Please login again!", Toast.LENGTH_SHORT).show();
-                        }
-                    }
-
-                    @Override
-                    public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-                        Log.d(TAG, MSG + "onChildChanged");
-                    }
-
-                    @Override
-                    public void onChildRemoved(DataSnapshot dataSnapshot) {
-                        Log.d(TAG, MSG + "onChildRemoved");
-                    }
-
-                    @Override
-                    public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-                        Log.d(TAG, MSG + "onChildMoved");
-                    }
-
-                    @Override
-                    public void onCancelled(DatabaseError databaseError) {
-                        Log.d(TAG, MSG + "onCancelled");
-                    }
-                });
             } //onclick user Login
         }); //ButtonUserLogin.setOnClickListener
 
@@ -307,8 +271,6 @@ public class MainActivity extends AppCompatActivity {
 
                 // 1. 取得使用者輸入
 
-
-
                 if (mEditTextUserRegisterName.getText() == null
                         || mEditTextUserRegisterName.getText().toString().equals("")
                         || mEditTextUserRegisterEmail.getText() == null
@@ -319,9 +281,9 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                final String strName = mEditTextUserRegisterName.getText().toString();
-                final String strEmail = mEditTextUserRegisterEmail.getText().toString();
-                final String strPw = EncodeMd5.md5Password(mEditTextUserRegisterPw.getText().toString());
+                strName = mEditTextUserRegisterName.getText().toString();
+                strEmail = mEditTextUserRegisterEmail.getText().toString();
+                strPw = EncodeMd5.md5Password(mEditTextUserRegisterPw.getText().toString());
 
                 Log.d(TAG, MSG + "Register password: " + strPw);
 
@@ -329,8 +291,13 @@ public class MainActivity extends AppCompatActivity {
                 //    1) 如果已經存在，則跳出已有此使用者 id
                 //	  2) 如果這個帳號還沒有人使用過，則成功註冊並跳轉頁面
                 // [Firebase] query
-                Query queryData = mDatabaseReference.child("user").orderByChild("email").equalTo(strEmail);
-                queryData.addValueEventListener(new ValueEventListener() {
+//                if (isFirstUserRegister) {
+//                    isFirstUserRegister = false;
+//                } else {
+//                    mQueryUserRegisterData.removeEventListener();
+//                }
+                mQueryUserRegisterData = mDatabaseReference.child("user").orderByChild("email").equalTo(strEmail);
+                mQueryUserRegisterData.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         // This method is called once with the initial value and again
@@ -363,56 +330,7 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(TAG, MSG + "register onCancelled");
                     }
                 });
-//                DatabaseReference userDataRef = mDatabase.getReference("user");
-//
-//                Query queryData = userDataRef.orderByChild("email").equalTo(strEmail);
-//                queryData.addChildEventListener(new ChildEventListener() {
-//
-//                    @Override
-//                    public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-//
-//                        Log.d(TAG, MSG + "onChildAdded");
-//                        Log.d(TAG, MSG + "registration : dataSnapshot = " + dataSnapshot.toString());
-//
-//                        // search the specific email (user input)
-//                        String strData = dataSnapshot.child("email").getValue().toString();
-//                        Log.d(TAG, MSG + "[Login] dataSnapshot.child(\"email\").toString() = " + strData);
-//
-//                        // if no matched email
-//                        if (strData == null) {
-//
-//                            Toast.makeText(MainActivity.this, "Welcome!", Toast.LENGTH_SHORT).show();
-//
-//                            // register
-//                            firebaseHelper.writeNewUser(strName, strEmail, strPw);
-//                            mConstraintLayoutUserLogin.setVisibility(View.GONE);
-//
-//
-//                        } else {
-//                            Toast.makeText(MainActivity.this, "Email is already existed", Toast.LENGTH_SHORT).show();
-//                        }
-//                    }
-//
-//                    @Override
-//                    public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-//                        Log.d(TAG, MSG + "onChildChanged");
-//                    }
-//
-//                    @Override
-//                    public void onChildRemoved(DataSnapshot dataSnapshot) {
-//                        Log.d(TAG, MSG + "onChildRemoved");
-//                    }
-//
-//                    @Override
-//                    public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-//                        Log.d(TAG, MSG + "onChildMoved");
-//                    }
-//
-//                    @Override
-//                    public void onCancelled(DatabaseError databaseError) {
-//                        Log.d(TAG, MSG + "onCancelled");
-//                    }
-//                });
+
             }
         }); // user Register
 
@@ -499,135 +417,15 @@ public class MainActivity extends AppCompatActivity {
 
 
                 // [Firebase] query
-                DatabaseReference userDataRef = mDatabase.getReference("user");
+                mUserDataRef = mDatabase.getReference("user");
 
-                Query queryData = userDataRef.orderByChild("email").equalTo(strEmailInput);
-                queryData.addChildEventListener(new ChildEventListener() {
-
-                    @Override
-                    public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-
-                        Log.d(TAG, MSG + "onChildAdded");
-                        Log.d(TAG, MSG + "Search user by email onDataChange: dataSnapshot = " + dataSnapshot.toString());
-                        Log.d(TAG, MSG + "Search user by email onDataChange: getKey = " + dataSnapshot.getKey());
-
-
-                        if (dataSnapshot.getKey() == null) {
-                            return;
-                        }
-
-                        mTextViewFriendStatus.setText("");
-                        mButtonFriendStatus.setVisibility(View.VISIBLE);
-                        mStrFriendId = dataSnapshot.getKey().toString();
-
-                        DatabaseReference friendDataRef = mDatabase.getReference("user/" + mStrUserId + "/friends");
-//                        DatabaseReference friendDataRef = mDatabase.getReference("user/" + mStrUserId);
-
-                        Query queryFriends = friendDataRef.orderByKey().equalTo(mStrFriendId);
-//                        Query queryFriends = friendDataRef.orderByChild(mStrFriendId).limitToFirst(1);
-//                        Query queryFriends = friendDataRef.orderByChild("friends").equalTo(mStrFriendId);
-                        queryFriends.addChildEventListener(new ChildEventListener() {
-
-                            // 第一次會進來 + 後續每次 invited 都會進來
-                            @Override
-                            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-
-                                Log.d(TAG, MSG + "onChildAdded: friends status: " + dataSnapshot.toString());
-                                if (dataSnapshot.getValue() == null) {
-                                    Log.d(TAG, MSG + "query friends: getValue() = null");
-                                }
-
-                                mStrFriendStatus = dataSnapshot.getValue().toString();
-                                if (mStrFriendStatus.equals("friends")) {
-                                    mButtonFriendStatus.setText("Un-friend");
-                                    mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
-
-                                } else if (mStrFriendStatus.equals("invited")) {
-                                    //我送邀請對方還沒回應
-                                    mButtonFriendStatus.setText("Cancel");
-                                    mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
-
-                                } else if (mStrFriendStatus.equals("to be confirmed")) {
-                                    //對方送邀請給我還沒回應
-                                    mButtonFriendStatus.setText("Confirm");
-                                    mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
-
-                                } else {
-                                    mButtonFriendStatus.setText("Invite");
-                                    mTextViewFriendStatus.setText("");
-                                }
-
-                                Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
-                            }
-
-                            // 修改 db 內容時會進來
-                            @Override
-                            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-                                Log.d(TAG, MSG + "onChildChanged: friends status: " + dataSnapshot.toString());
-                                if (dataSnapshot.getValue() == null) {
-                                    Log.d(TAG, MSG + "query friends: getValue() = null");
-                                }
-
-                                //如果原本狀態是邀請對方或受邀請還沒回應，進來代表雙方變成朋友
-                                mStrFriendStatus = "friends";
-                                mButtonFriendStatus.setText("Un-friend");
-                                mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
-
-                                Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
-                            }
-
-                            // 取消或刪除好友時會進來
-                            @Override
-                            public void onChildRemoved(DataSnapshot dataSnapshot) {
-
-                                Log.d(TAG, MSG + "onChildRemoved: friends status: " + dataSnapshot.toString());
-                                if (dataSnapshot.getValue() == null) {
-                                    Log.d(TAG, MSG + "query friends: getValue() = null");
-                                }
-
-                                //進來代表被取消好友了
-                                mStrFriendStatus = "";
-                                mButtonFriendStatus.setText("Invite");
-                                mTextViewFriendStatus.setText("");
-
-                                Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
-                            }
-
-                            @Override
-                            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-                                Log.d(TAG, MSG + "onChildMoved: friends status: " + dataSnapshot.toString());
-                            }
-
-                            @Override
-                            public void onCancelled(DatabaseError databaseError) {
-                                Log.d(TAG, MSG + "onCancelled");
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-                        Log.d(TAG, MSG + "onChildChanged");
-                    }
-
-                    @Override
-                    public void onChildRemoved(DataSnapshot dataSnapshot) {
-                        Log.d(TAG, MSG + "onChildRemoved");
-
-                    }
-
-                    @Override
-                    public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-                        Log.d(TAG, MSG + "onChildMoved");
-                    }
-
-                    @Override
-                    public void onCancelled(DatabaseError databaseError) {
-                        Log.d(TAG, MSG + "onCancelled");
-                    }
-                });
+                if (isFirstQueryFriendId) {
+                    isFirstUserLogin = false;
+                } else {
+                    mQueryFriendId.removeEventListener(mChildEventListenerSearchFriendId);
+                }
+                mQueryFriendId = mUserDataRef.orderByChild("email").equalTo(strEmailInput);
+                mQueryFriendId.addChildEventListener(mChildEventListenerSearchFriendId);
 
             }
         }); // search users by email
@@ -693,13 +491,246 @@ public class MainActivity extends AppCompatActivity {
                     mStrFriendStatus = "invited";
                     mTextViewFriendStatus.setText("Status: invitation sent!");
                     mButtonFriendStatus.setText("Cancel");
-
-
-
                 }
 
             } //onclick user Login
         }); //ButtonUserLogin.setOnClickListener
 
     } //end of onCreate
+
+
+    private ValueEventListener mEventListenerQueryArticle = new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            // This method is called once with the initial value and again
+            // whenever data at this location is updated.
+
+            // show all users has this email
+            // update UI
+
+//                String value = dataSnapshot.getValue(String.class);
+//                Log.d(TAG, "Value is: " + value);
+//                String value = dataSnapshot.getValue(String.class);
+            Log.d(TAG, MSG + "Search articles onDataChange: dataSnapshot = " + dataSnapshot.toString());
+        }
+
+        @Override
+        public void onCancelled(DatabaseError error) {
+            // Failed to read value
+            Log.d(TAG, MSG + "Search articles onCancelled");
+        }
+    };
+
+
+
+    private ChildEventListener mChildEventListenerSearchFriendStatus = new ChildEventListener() {
+
+        // 第一次會進來 + 後續每次 invited 都會進來
+        @Override
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+            Log.d(TAG, MSG + "onChildAdded: friends status: " + dataSnapshot.toString());
+            if (dataSnapshot.getValue() == null) {
+                Log.d(TAG, MSG + "query friends: getValue() = null");
+            }
+
+            mStrFriendStatus = dataSnapshot.getValue().toString();
+            if (mStrFriendStatus.equals("friends")) {
+                mButtonFriendStatus.setText("Un-friend");
+                mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
+
+            } else if (mStrFriendStatus.equals("invited")) {
+                //我送邀請對方還沒回應
+                mButtonFriendStatus.setText("Cancel");
+                mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
+
+            } else if (mStrFriendStatus.equals("to be confirmed")) {
+                //對方送邀請給我還沒回應
+                mButtonFriendStatus.setText("Confirm");
+                mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
+
+            } else {
+                mButtonFriendStatus.setText("Invite");
+                mTextViewFriendStatus.setText("");
+            }
+
+            Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
+        }
+
+        // 修改 db 內容時會進來
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            Log.d(TAG, MSG + "onChildChanged: friends status: " + dataSnapshot.toString());
+            if (dataSnapshot.getValue() == null) {
+                Log.d(TAG, MSG + "query friends: getValue() = null");
+            }
+
+            //如果原本狀態是邀請對方或受邀請還沒回應，進來代表雙方變成朋友
+            mStrFriendStatus = "friends";
+            mButtonFriendStatus.setText("Un-friend");
+            mTextViewFriendStatus.setText("Status: " + mStrFriendStatus);
+
+            Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
+        }
+
+        // 取消或刪除好友時會進來
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            Log.d(TAG, MSG + "onChildRemoved: friends status: " + dataSnapshot.toString());
+            if (dataSnapshot.getValue() == null) {
+                Log.d(TAG, MSG + "query friends: getValue() = null");
+            }
+
+            //進來代表被取消好友了
+            mStrFriendStatus = "";
+            mButtonFriendStatus.setText("Invite");
+            mTextViewFriendStatus.setText("");
+
+            Log.d(TAG, MSG + "query friends: mStrFriendStatus = " + mStrFriendStatus);
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            Log.d(TAG, MSG + "onChildMoved: friends status: " + dataSnapshot.toString());
+        }
+
+        @Override
+        public void onCancelled(DatabaseError databaseError) {
+            Log.d(TAG, MSG + "onCancelled");
+        }
+    };
+
+    private ChildEventListener mChildEventListenerSearchFriendId = new ChildEventListener() {
+
+        @Override
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+            Log.d(TAG, MSG + "onChildAdded");
+            Log.d(TAG, MSG + "Search user by email onDataChange: dataSnapshot = " + dataSnapshot.toString());
+            Log.d(TAG, MSG + "Search user by email onDataChange: getKey = " + dataSnapshot.getKey());
+
+
+            if (dataSnapshot.getKey() == null) {
+                return;
+            }
+
+            mTextViewFriendStatus.setText("");
+            mButtonFriendStatus.setVisibility(View.VISIBLE);
+            mStrFriendId = dataSnapshot.getKey().toString();
+
+            mFriendDataRef = mDatabase.getReference("user/" + mStrUserId + "/friends");
+//                        DatabaseReference friendDataRef = mDatabase.getReference("user/" + mStrUserId);
+
+            if (isFirstQueryFriendStatus) {
+                isFirstQueryFriendStatus = false;
+            } else {
+                mQueryFriendsStatus.removeEventListener(mChildEventListenerSearchFriendStatus);
+            }
+            mQueryFriendsStatus = mFriendDataRef.orderByKey().equalTo(mStrFriendId);
+//                        Query queryFriends = friendDataRef.orderByChild(mStrFriendId).limitToFirst(1);
+//                        Query queryFriends = friendDataRef.orderByChild("friends").equalTo(mStrFriendId);
+            mQueryFriendsStatus.addChildEventListener(mChildEventListenerSearchFriendStatus);
+        }
+
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+            Log.d(TAG, MSG + "onChildChanged");
+        }
+
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+            Log.d(TAG, MSG + "onChildRemoved");
+
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+            Log.d(TAG, MSG + "onChildMoved");
+        }
+
+        @Override
+        public void onCancelled(DatabaseError databaseError) {
+            Log.d(TAG, MSG + "onCancelled");
+        }
+    };
+
+    // search user email
+    private ChildEventListener mChildEventListenerSearchUserEmail = new ChildEventListener() {
+
+        @Override
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+            Log.d(TAG, MSG + "onChildAdded");
+            Log.d(TAG, MSG + "Login by email onDataChange: dataSnapshot = " + dataSnapshot.toString());
+
+            Boolean hasLoginCheck = false;
+
+            // search the specific email (user input)
+            String strData = dataSnapshot.child("email").getValue().toString();
+            Log.d(TAG, MSG + "[Login] dataSnapshot.child(\"email\").toString() = " + strData);
+
+            // if no matched email
+            if (strData == null) {
+
+                Toast.makeText(MainActivity.this, "Email is not existed!", Toast.LENGTH_SHORT).show();
+                hasLoginCheck = false;
+
+            } else {
+
+                // check password
+                if (dataSnapshot.hasChild("password")) {
+
+                    String userPassword = dataSnapshot.child("password").getValue().toString();
+                    if (strPw.equals(userPassword)) {
+                        hasLoginCheck = true;
+                    }
+
+                } else {
+                    // super user (don't have password)
+                    hasLoginCheck = true;
+                }
+            }
+
+            // if login
+            if (hasLoginCheck) {
+
+                mStrUserEmail = mEditTextUserLoginEmail.getText().toString();
+                mStrUserId = dataSnapshot.getKey();
+                Toast.makeText(MainActivity.this, "Welcome!", Toast.LENGTH_SHORT).show();
+                mConstraintLayoutUserLogin.setVisibility(View.GONE);
+                mConstraintLayoutSearchUser.setVisibility(View.VISIBLE);
+                mConstraintLayoutPostArticle.setVisibility(View.VISIBLE);
+                mConstraintLayoutSearchArticle.setVisibility(View.VISIBLE);
+
+            } else {
+
+                mEditTextUserLoginEmail.setText("");
+                mEditTextUserLoginPw.setText("");
+                Toast.makeText(MainActivity.this, "Email or password is invalid. Please login again!", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+            Log.d(TAG, MSG + "onChildChanged");
+        }
+
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+            Log.d(TAG, MSG + "onChildRemoved");
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+            Log.d(TAG, MSG + "onChildMoved");
+        }
+
+        @Override
+        public void onCancelled(DatabaseError databaseError) {
+            Log.d(TAG, MSG + "onCancelled");
+        }
+    };
 }
